@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,14 +22,23 @@ jobs:
       - name: Extract Android project
         run: |
           unzip -q SXT-MOAZ_FF_Android_Project_with_Entry_Payment.zip -d project
-          ls -la project
+          echo "Files inside ZIP:"
+          find project -maxdepth 4 -type f | head -100
 
-      - name: Build APK
-        working-directory: project
-        run: gradle assembleDebug
+      - name: Find Gradle project and build APK
+        run: |
+          SETTINGS=$(find project -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)
+          if [ -z "$SETTINGS" ]; then
+            echo "ERROR: settings.gradle not found in ZIP"
+            exit 1
+          fi
+          PROJECT_DIR=$(dirname "$SETTINGS")
+          echo "Gradle project: $PROJECT_DIR"
+          gradle -p "$PROJECT_DIR" assembleDebug
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: SXT-MOAZ-FF-APK
-          path: project/app/build/outputs/apk/debug/*.apk
+          path: project/**/app/build/outputs/apk/debug/*.apk
